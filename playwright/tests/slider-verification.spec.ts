@@ -1,8 +1,16 @@
-// @ts-check
-const { test, expect } = require("@playwright/test");
+import { test, expect, Page } from "@playwright/test";
+
+// 配置介面
+interface Config {
+  testUrl: string;
+  sliderSelector: string;
+  bgCanvasSelector: string;
+  gapCanvasSelector: string;
+  successSelector: string;
+}
 
 // 配置
-const config = {
+const config: Config = {
   testUrl: "https://swag.live",
   sliderSelector: ".geetest_btn",
   bgCanvasSelector: ".geetest_bg",
@@ -11,15 +19,23 @@ const config = {
 };
 
 // 隨機延遲函數
-const randomDelay = (min, max) => {
+const randomDelay = (min: number, max: number): number => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
+
+// 擴展 Window 介面
+declare global {
+  interface Window {
+    cv: any;
+    chrome: any;
+  }
+}
 
 // 增加測試超時時間
 test.setTimeout(120000);
 
 test.describe("滑塊驗證測試 - Playwright", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }: { page: Page }) => {
     // 隱藏 WebDriver 標記
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "webdriver", {
@@ -31,11 +47,17 @@ test.describe("滑塊驗證測試 - Playwright", () => {
       Object.defineProperty(navigator, "languages", {
         get: () => ["zh-TW", "zh", "en-US", "en"],
       });
-      window.chrome = { runtime: {} };
-      const originalQuery = window.navigator.permissions.query;
-      window.navigator.permissions.query = (parameters) =>
+      (window as any).chrome = { runtime: {} };
+      const originalQuery = window.navigator.permissions.query.bind(
+        window.navigator.permissions
+      );
+      window.navigator.permissions.query = (
+        parameters: PermissionDescriptor
+      ): Promise<PermissionStatus> =>
         parameters.name === "notifications"
-          ? Promise.resolve({ state: Notification.permission })
+          ? Promise.resolve({
+              state: Notification.permission,
+            } as PermissionStatus)
           : originalQuery(parameters);
     });
 
@@ -49,8 +71,8 @@ test.describe("滑塊驗證測試 - Playwright", () => {
     await page.route("**/api.swag.live/story/**", (route) => route.abort());
   });
 
-  test("智能滑塊驗證", async ({ page }) => {
-    console.log(" 開始測試...");
+  test("智能滑塊驗證", async ({ page }: { page: Page }) => {
+    console.log("[START] 開始測試...");
 
     // 訪問頁面
     await page.goto(config.testUrl, { waitUntil: "domcontentloaded" });
@@ -132,7 +154,7 @@ test.describe("滑塊驗證測試 - Playwright", () => {
     await page.waitForTimeout(2000);
 
     // 注入 OpenCV
-    console.log("⏳ 正在載入 OpenCV.js...");
+    console.log("正在載入 OpenCV.js...");
     await page.addScriptTag({
       url: "https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.min.js",
     });
@@ -140,16 +162,16 @@ test.describe("滑塊驗證測試 - Playwright", () => {
     // 等待 OpenCV 初始化
     await page.waitForFunction(
       () => {
-        return window.cv && window.cv.imread;
+        return (window as any).cv && (window as any).cv.imread;
       },
       { timeout: 30000 }
     );
     console.log("✓ OpenCV.js 載入完成");
 
     // 獲取缺口位置
-    console.log("⏳ 正在偵測缺口位置...");
-    const gapX = await page.evaluate(() => {
-      function extractImageUrl(element) {
+    console.log(" 正在偵測缺口位置...");
+    const gapX = await page.evaluate((): Promise<number> => {
+      function extractImageUrl(element: Element): string {
         const style = window.getComputedStyle(element);
         const backgroundImage = style.backgroundImage;
         const urlMatch = backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
@@ -159,7 +181,7 @@ test.describe("滑塊驗證測試 - Playwright", () => {
         return urlMatch[1];
       }
 
-      function loadImage(url) {
+      function loadImage(url: string): Promise<HTMLImageElement> {
         return new Promise((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = "anonymous";
@@ -186,11 +208,12 @@ test.describe("滑塊驗證測試 - Playwright", () => {
             loadImage(gapUrl),
           ]);
 
+          const cv = (window as any).cv;
           const src = cv.imread(bgImg);
           const template = cv.imread(gapImg);
 
           // 清除白邊
-          const clearWhite = (img) => {
+          const clearWhite = (img: any) => {
             const gray = new cv.Mat();
             cv.cvtColor(img, gray, cv.COLOR_RGBA2GRAY);
             const binary = new cv.Mat();
@@ -236,7 +259,7 @@ test.describe("滑塊驗證測試 - Playwright", () => {
             cv.TM_CCOEFF_NORMED
           );
           const minMax = cv.minMaxLoc(result);
-          const gapX = minMax.maxLoc.x;
+          const gapX: number = minMax.maxLoc.x;
 
           // 清理記憶體
           src.delete();
@@ -261,16 +284,16 @@ test.describe("滑塊驗證測試 - Playwright", () => {
     console.log(`✓ 偵測到缺口位置: X = ${gapX}px`);
 
     // 使用 Playwright 的真實滑鼠操作
-    console.log(" 開始滑動滑塊...");
+    console.log("✓ 開始滑動滑塊...");
 
     const sliderBox = await slider.boundingBox();
     if (!sliderBox) {
       throw new Error("無法獲取滑塊位置");
     }
 
-    const startX = sliderBox.x + sliderBox.width / 2;
-    const startY = sliderBox.y + sliderBox.height / 2;
-    const endX = startX + gapX;
+    const startX: number = sliderBox.x + sliderBox.width / 2;
+    const startY: number = sliderBox.y + sliderBox.height / 2;
+    const endX: number = startX + gapX;
 
     // 移動到滑塊位置
     await page.mouse.move(startX, startY);
@@ -281,22 +304,22 @@ test.describe("滑塊驗證測試 - Playwright", () => {
     await page.waitForTimeout(randomDelay(100, 200));
 
     // 貝塞爾曲線滑動
-    const steps = 50;
-    const controlPoint1X =
+    const steps: number = 50;
+    const controlPoint1X: number =
       startX + (endX - startX) * (0.3 + Math.random() * 0.2);
-    const controlPoint1Y = startY + (Math.random() * 20 - 10);
-    const controlPoint2X =
+    const controlPoint1Y: number = startY + (Math.random() * 20 - 10);
+    const controlPoint2X: number =
       startX + (endX - startX) * (0.6 + Math.random() * 0.2);
-    const controlPoint2Y = startY + (Math.random() * 20 - 10);
+    const controlPoint2Y: number = startY + (Math.random() * 20 - 10);
 
     for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      const x =
+      const t: number = i / steps;
+      const x: number =
         Math.pow(1 - t, 3) * startX +
         3 * Math.pow(1 - t, 2) * t * controlPoint1X +
         3 * (1 - t) * Math.pow(t, 2) * controlPoint2X +
         Math.pow(t, 3) * endX;
-      const y =
+      const y: number =
         Math.pow(1 - t, 3) * startY +
         3 * Math.pow(1 - t, 2) * t * controlPoint1Y +
         3 * (1 - t) * Math.pow(t, 2) * controlPoint2Y +
@@ -316,15 +339,17 @@ test.describe("滑塊驗證測試 - Playwright", () => {
     await page.waitForTimeout(3000);
 
     // 檢查結果
-    const success = await page
-      .locator(config.successSelector)
-      .isVisible()
-      .catch(() => false);
+    let success = false;
+    try {
+      success = await page.locator(config.successSelector).isVisible();
+    } catch {
+      success = false;
+    }
 
     if (success) {
-      console.log(" 滑塊驗證成功！");
+      console.log("✓ 滑塊驗證成功！");
     } else {
-      console.log(" 驗證結果待確認，請檢查截圖");
+      console.log("✓ 驗證結果待確認，請檢查截圖");
     }
 
     // 截圖保存結果

@@ -59,7 +59,7 @@ npm run test:cypress
 
 > **已知問題**：Cypress 目前會遇到 Geetest `60500` 錯誤（極驗封禁），因為 Geetest 會偵測到 Cypress 的自動化特徵。
 
-### Playwright 測試 ✅ 推薦
+### Playwright 測試（推薦）
 
 ```bash
 # 有頭模式（可觀察瀏覽器操作）
@@ -76,14 +76,32 @@ npm run test:playwright:ui
 
 ---
 
+## 專案結構
+
+```
+├── cypress/                    # Cypress 測試 (JavaScript)
+│   └── e2e/
+│       ├── slider-verification.cy.js
+│       ├── slider-opencv.cy.js
+│       └── slider-console.cy.js
+├── playwright/                 # Playwright 測試 (TypeScript)
+│   └── tests/
+│       └── slider-verification.spec.ts
+├── cypress.config.js           # Cypress 配置
+├── playwright.config.js        # Playwright 配置
+└── package.json
+```
+
+---
+
 ## 測試框架比較
 
-| 特點             | Cypress            | Playwright   |
-| ---------------- | ------------------ | ------------ |
-| Geetest 滑塊驗證 | 60500 錯誤         | 正常運行     |
-| 反自動化檢測     | 無法繞過           | 支援 stealth |
-| 真實滑鼠操作     | 事件派發           | 原生 API     |
-| 推薦度           | 不推薦用於滑塊驗證 | 推薦         |
+| 特點             | Cypress            | Playwright     |
+| ---------------- | ------------------ | -------------- |
+| Geetest 滑塊驗證 | X 60500 錯誤       | O 正常運行     |
+| 反自動化檢測     | X 無法繞過         | O 支援 stealth |
+| 真實滑鼠操作     | - 事件派發         | O 原生 API     |
+| 推薦度           | 不推薦用於滑塊驗證 | O 推薦         |
 
 ---
 
