@@ -1,13 +1,17 @@
 {
-  "name": "cypress-slider-verification-test",
+  "name": "slider-verification-test",
   "version": "1.0.0",
-  "description": "Cypress E2E",
+  "description": "Cypress & Playwright E2E Testing",
   "main": "index.js",
   "scripts": {
-    "test": "cypress open"
+    "test:cypress": "cypress open",
+    "test:playwright": "playwright test",
+    "test:playwright:ui": "playwright test --ui",
+    "test:playwright:headed": "playwright test --headed"
   },
   "keywords": [
     "cypress",
+    "playwright",
     "e2e",
     "testing",
     "slider",
@@ -16,7 +20,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "cypress": "^15.7.1"
+    "@playwright/test": "^1.57.0",
+    "cypress": "^15.7.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "dependencies": {
     "cypress-real-events": "^1.15.0"
